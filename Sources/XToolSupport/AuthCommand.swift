@@ -23,6 +23,7 @@ struct AuthOperation {
 
     var mode: AuthMode?
     var quiet = false
+    var web = false
 
     func run() async throws {
         if let token = try? AuthToken.saved(), !logoutFromExisting {
@@ -33,7 +34,12 @@ struct AuthOperation {
         }
 
         let mode: AuthMode
-        if let existing = self.mode {
+        if web {
+            guard self.mode != .key else {
+                throw Console.Error("--web only supports the password login mode.")
+            }
+            mode = .password
+        } else if let existing = self.mode {
             mode = existing
         } else {
             mode = try await Console.choose(
@@ -45,6 +51,8 @@ struct AuthOperation {
         }
 
         let token = switch mode {
+        case .password where web:
+            try await logInWithPasswordInBrowser()
         case .password:
             try await logInWithPassword()
         case .key:
@@ -117,16 +125,24 @@ struct AuthOperation {
             }
         )
 
+        return .xcode(xcodeToken(username: username, loginToken: token, team: team))
+    }
+
+    func xcodeToken(
+        username: String,
+        loginToken: DeveloperServicesLoginToken,
+        team: DeveloperServicesTeam
+    ) -> AuthToken.Xcode {
         @Dependency(\.anisetteDataProvider) var anisetteProvider
 
-        return AuthToken.xcode(.init(
+        return AuthToken.Xcode(
             appleID: username,
-            adsid: token.adsid,
-            token: token.token,
-            expiry: token.expiry,
+            adsid: loginToken.adsid,
+            token: loginToken.token,
+            expiry: loginToken.expiry,
             teamID: team.id.rawValue,
             anisetteProviderID: anisetteProvider.providerID
-        ))
+        )
     }
 }
 
@@ -139,13 +155,23 @@ struct AuthLoginCommand: AsyncParsableCommand {
     @Option(name: [.short, .long], help: "Apple ID") var username: String?
     @Option(name: [.short, .long]) var password: String?
     @Option(name: [.short, .long]) var mode: AuthMode?
+    @Flag(
+        help: ArgumentHelp(
+            "Enter your Apple ID, password and verification code in a browser page served on 127.0.0.1",
+            discussion: """
+            Use this when the terminal prompts don't accept typed or pasted input. \
+            Implies the password login mode.
+            """
+        )
+    ) var web = false
 
     func run() async throws {
         try await AuthOperation(
             username: username,
             password: password,
             logoutFromExisting: true,
-            mode: mode
+            mode: mode,
+            web: web
         ).run()
     }
 }

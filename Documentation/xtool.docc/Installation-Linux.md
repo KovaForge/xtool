@@ -121,6 +121,8 @@ Choice (0-1):
 
 Once you select a login mode, you'll be asked to provide the corresponding credentials (API key or email+password+2FA). Needless to say, *your credentials are only sent to Apple* and nobody else (feel free to build xtool from source and check!)
 
+> Tip: If your terminal won't accept typed or pasted input at the password or code prompt, run `xtool auth login --web` instead. It serves a one-time login page on `127.0.0.1` and opens it in your browser, where you can enter (or autofill) your Apple ID, password and verification code.
+
 ### 3. Configure xtool: SDK
 
 After you're logged in, you'll be asked to provide the path to the `Xcode.xip` file you downloaded earlier.
